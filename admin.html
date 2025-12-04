@@ -1,0 +1,1344 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理员界面 - 本地AI交互平台</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      overflow: hidden; /* 隐藏页面整体滚动条 */
+    }
+    .admin-container {
+      height: calc(100vh - 64px);
+      overflow-y: auto;
+    }
+    .data-table th, .data-table td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    .action-btn {
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .action-btn:hover {
+      opacity: 0.9;
+      transform: scale(1.05);
+    }
+    /* 滚动条美化 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #a1a1a1;
+    }
+    .sidebar-item {
+      transition: all 0.2s;
+    }
+    .sidebar-item:hover {
+      background-color: #f0f9ff;
+      color: #3B82F6;
+    }
+    .sidebar-item.active {
+      background-color: #e0f2fe;
+      color: #3B82F6;
+      font-weight: 600;
+    }
+    /* 功能面板样式 */
+    .function-panel {
+      display: none;
+      height: 100%;
+    }
+    .function-panel.active {
+      display: block;
+    }
+    /* 表单样式优化 */
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+    .form-label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+      color: #374151;
+    }
+    .form-control {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #d1d5db;
+      border-radius: 0.375rem;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .form-control:focus {
+      outline: none;
+      border-color: #3B82F6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+    /* 卡片样式 */
+    .setting-card {
+      background-color: white;
+      border-radius: 0.75rem;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .setting-card h3 {
+      font-size: 1.125rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: #1f2937;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+  <!-- 顶部导航：固定在顶部，全屏宽度 -->
+  <header class="bg-white shadow-md fixed top-0 left-0 right-0 z-50 h-16 flex items-center">
+    <div class="px-4 flex justify-between items-center w-full">
+      <div class="flex items-center space-x-2">
+        <i class="fa fa-cogs text-2xl text-blue-500"></i>
+        <h1 class="text-xl font-bold text-gray-800">管理员后台</h1>
+      </div>
+      <nav>
+        <a href="/" class="text-gray-600 hover:text-blue-500 mx-3">返回主界面</a>
+        <a href="#" class="text-gray-600 hover:text-blue-500 mx-3">帮助</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- 主体内容：全屏高度，左右布局 -->
+  <main class="flex h-screen pt-16">
+    <!-- 左侧边栏：功能菜单（与主界面风格一致） -->
+    <div class="w-60 bg-white shadow-md p-4 hidden md:block h-full overflow-y-auto border-r border-gray-200">
+      <div class="flex justify-between items-center mb-6 pb-3 border-b border-gray-100">
+        <h3 class="font-bold text-gray-800">管理菜单</h3>
+      </div>
+
+      <div class="space-y-1 mb-8">
+        <a href="#data-management" class="sidebar-item active flex items-center px-3 py-2 rounded-lg text-gray-700" data-panel="data-panel">
+          <i class="fa fa-database w-5 text-center mr-2"></i>交互数据管理
+        </a>
+        <a href="#user-management" class="sidebar-item flex items-center px-3 py-2 rounded-lg text-gray-700" data-panel="user-panel">
+          <i class="fa fa-user-o w-5 text-center mr-2"></i>用户管理
+        </a>
+        <a href="#system-settings" class="sidebar-item flex items-center px-3 py-2 rounded-lg text-gray-700" data-panel="setting-panel">
+          <i class="fa fa-cog w-5 text-center mr-2"></i>系统设置
+        </a>
+        <a href="#statistics" class="sidebar-item flex items-center px-3 py-2 rounded-lg text-gray-700" data-panel="stats-panel">
+          <i class="fa fa-bar-chart w-5 text-center mr-2"></i>统计分析
+        </a>
+      </div>
+
+      <div class="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-100">
+        <h4 class="font-medium text-blue-800 mb-2 flex items-center">
+          <i class="fa fa-info-circle mr-2"></i>操作提示
+        </h4>
+        <ul class="text-sm text-blue-700 space-y-1">
+          <li>• 所有数据存储在本地浏览器中</li>
+          <li>• 支持对交互数据进行增删改查</li>
+          <li>• 谨慎删除重要数据（删除后不可恢复）</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- 右侧功能区：占满剩余空间 -->
+    <div class="flex-1 bg-gray-50 flex flex-col h-full p-4 md:p-6">
+      <!-- 移动端Tab切换（仅移动端显示） -->
+      <div class="flex justify-center border-b border-gray-200 md:hidden mb-4">
+        <button class="tab-active px-4 py-3 text-gray-700 hover:text-blue-500 text-sm" data-panel="data-panel">
+          <i class="fa fa-database mr-1"></i>数据管理
+        </button>
+        <button class="px-4 py-3 text-gray-700 hover:text-blue-500 text-sm" data-panel="user-panel">
+          <i class="fa fa-user-o mr-1"></i>用户
+        </button>
+        <button class="px-4 py-3 text-gray-700 hover:text-blue-500 text-sm" data-panel="setting-panel">
+          <i class="fa fa-cog mr-1"></i>设置
+        </button>
+        <button class="px-4 py-3 text-gray-700 hover:text-blue-500 text-sm" data-panel="stats-panel">
+          <i class="fa fa-bar-chart mr-1"></i>统计
+        </button>
+      </div>
+
+      <!-- 1. 交互数据管理面板 -->
+      <div id="data-panel" class="function-panel active bg-white rounded-xl shadow-md p-6 flex-1 overflow-y-auto">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-3">
+          <h2 class="text-2xl font-bold text-gray-800">交互数据管理</h2>
+          <div class="flex space-x-3 w-full md:w-auto">
+            <div class="relative flex-1 md:flex-initial">
+              <input type="text" id="search-input" placeholder="搜索用户输入或AI响应..."
+                class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+              <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            </div>
+            <button id="add-data-btn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors">
+              <i class="fa fa-plus mr-2"></i>新增数据
+            </button>
+            <button id="refresh-data" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors">
+              <i class="fa fa-refresh mr-2"></i>刷新
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="data-table w-full min-w-[800px]">
+            <thead>
+              <tr class="bg-gray-50">
+                <th class="text-left font-semibold text-gray-700">ID</th>
+                <th class="text-left font-semibold text-gray-700">用户输入</th>
+                <th class="text-left font-semibold text-gray-700">AI响应</th>
+                <th class="text-left font-semibold text-gray-700">交互类型</th>
+                <th class="text-left font-semibold text-gray-700">时间</th>
+                <th class="text-left font-semibold text-gray-700">操作</th>
+              </tr>
+            </thead>
+            <tbody id="data-table-body">
+              <!-- 数据将通过JavaScript动态加载 -->
+              <tr>
+                <td colspan="6" class="text-center py-8 text-gray-500">
+                  <i class="fa fa-spinner fa-spin mr-2"></i>加载数据中...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 分页控件（模拟） -->
+        <div class="flex justify-between items-center mt-6 text-sm">
+          <div class="text-gray-600">
+            显示 1-10 条，共 <span class="font-medium text-blue-600" id="data-count">0</span> 条数据
+          </div>
+          <div class="flex space-x-1">
+            <button class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50" disabled>上一页</button>
+            <button class="px-3 py-1 border border-blue-500 bg-blue-500 text-white rounded">1</button>
+            <button class="px-3 py-1 border border-gray-300 rounded hover:bg-gray-50" disabled>下一页</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. 用户管理面板 -->
+      <div id="user-panel" class="function-panel bg-white rounded-xl shadow-md p-6 flex-1 overflow-y-auto">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-3">
+          <h2 class="text-2xl font-bold text-gray-800">用户管理</h2>
+          <div class="flex space-x-3 w-full md:w-auto">
+            <div class="relative flex-1 md:flex-initial">
+              <input type="text" id="user-search-input" placeholder="搜索用户名或邮箱..."
+                class="w-full px-4 py-2 pl-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+              <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            </div>
+            <button id="add-user-btn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors">
+              <i class="fa fa-plus mr-2"></i>新增用户
+            </button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="data-table w-full min-w-[800px]">
+            <thead>
+              <tr class="bg-gray-50">
+                <th class="text-left font-semibold text-gray-700">ID</th>
+                <th class="text-left font-semibold text-gray-700">用户名</th>
+                <th class="text-left font-semibold text-gray-700">邮箱</th>
+                <th class="text-left font-semibold text-gray-700">角色</th>
+                <th class="text-left font-semibold text-gray-700">创建时间</th>
+                <th class="text-left font-semibold text-gray-700">状态</th>
+                <th class="text-left font-semibold text-gray-700">操作</th>
+              </tr>
+            </thead>
+            <tbody id="user-table-body">
+              <!-- 用户数据将通过JavaScript动态加载 -->
+              <tr>
+                <td colspan="7" class="text-center py-8 text-gray-500">
+                  <i class="fa fa-spinner fa-spin mr-2"></i>加载用户中...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 3. 系统设置面板 -->
+      <div id="setting-panel" class="function-panel bg-white rounded-xl shadow-md p-6 flex-1 overflow-y-auto">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">系统设置</h2>
+
+        <div class="space-y-6">
+          <!-- 基础设置 -->
+          <div class="setting-card">
+            <h3 class="flex items-center">
+              <i class="fa fa-cog text-blue-500 mr-2"></i>基础设置
+            </h3>
+            <form id="basic-settings-form">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="form-group">
+                  <label class="form-label" for="site-title">网站标题</label>
+                  <input type="text" id="site-title" class="form-control" placeholder="输入网站标题">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="site-description">网站描述</label>
+                  <input type="text" id="site-description" class="form-control" placeholder="输入网站描述">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="ai-response-timeout">AI响应超时（秒）</label>
+                  <input type="number" id="ai-response-timeout" class="form-control" min="1" max="30" placeholder="默认10秒">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="max-message-length">最大消息长度</label>
+                  <input type="number" id="max-message-length" class="form-control" min="100" max="10000" placeholder="默认5000字">
+                </div>
+              </div>
+              <button type="submit" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                保存设置
+              </button>
+            </form>
+          </div>
+
+          <!-- 功能设置 -->
+          <div class="setting-card">
+            <h3 class="flex items-center">
+              <i class="fa fa-sliders text-blue-500 mr-2"></i>功能设置
+            </h3>
+            <form id="feature-settings-form">
+              <div class="space-y-3">
+                <div class="flex items-center">
+                  <input type="checkbox" id="enable-text" class="w-4 h-4 text-blue-500 rounded border-gray-300 focus:ring-blue-500">
+                  <label for="enable-text" class="ml-2 text-gray-700">启用文本交互功能</label>
+                </div>
+                <div class="flex items-center">
+                  <input type="checkbox" id="enable-voice" class="w-4 h-4 text-blue-500 rounded border-gray-300 focus:ring-blue-500">
+                  <label for="enable-voice" class="ml-2 text-gray-700">启用语音交互功能</label>
+                </div>
+                <div class="flex items-center">
+                  <input type="checkbox" id="enable-image" class="w-4 h-4 text-blue-500 rounded border-gray-300 focus:ring-blue-500">
+                  <label for="enable-image" class="ml-2 text-gray-700">启用图像识别功能</label>
+                </div>
+                <div class="flex items-center">
+                  <input type="checkbox" id="enable-history" class="w-4 h-4 text-blue-500 rounded border-gray-300 focus:ring-blue-500">
+                  <label for="enable-history" class="ml-2 text-gray-700">启用聊天历史记录</label>
+                </div>
+              </div>
+              <button type="submit" class="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">
+                保存设置
+              </button>
+            </form>
+          </div>
+
+          <!-- 数据管理 -->
+          <div class="setting-card">
+            <h3 class="flex items-center">
+              <i class="fa fa-database text-blue-500 mr-2"></i>数据管理
+            </h3>
+            <div class="space-y-4">
+              <p class="text-gray-600">当前本地存储数据大小：<span id="data-size">0 KB</span></p>
+              <button id="export-data" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                <i class="fa fa-download mr-2"></i>导出所有数据
+              </button>
+              <button id="clear-all-data" class="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">
+                <i class="fa fa-trash mr-2"></i>清空所有数据（谨慎操作）
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4. 统计分析面板 -->
+      <div id="stats-panel" class="function-panel bg-white rounded-xl shadow-md p-6 flex-1 overflow-y-auto">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6">统计分析</h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <!-- 统计卡片1 -->
+          <div class="setting-card text-center">
+            <div class="text-4xl font-bold text-blue-500 mb-2" id="total-interactions">0</div>
+            <div class="text-gray-600">总交互次数</div>
+          </div>
+          <!-- 统计卡片2 -->
+          <div class="setting-card text-center">
+            <div class="text-4xl font-bold text-green-500 mb-2" id="total-users">0</div>
+            <div class="text-gray-600">注册用户数</div>
+          </div>
+          <!-- 统计卡片3 -->
+          <div class="setting-card text-center">
+            <div class="text-4xl font-bold text-purple-500 mb-2" id="avg-response-time">0s</div>
+            <div class="text-gray-600">平均响应时间</div>
+          </div>
+        </div>
+
+        <!-- 交互类型统计 -->
+        <div class="setting-card mb-6">
+          <h3 class="flex items-center">
+            <i class="fa fa-pie-chart text-blue-500 mr-2"></i>交互类型分布
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+            <div class="bg-blue-50 p-4 rounded-lg text-center">
+              <div class="text-2xl font-bold text-blue-600" id="text-percent">0%</div>
+              <div class="text-gray-600 mt-1">文本交互</div>
+            </div>
+            <div class="bg-green-50 p-4 rounded-lg text-center">
+              <div class="text-2xl font-bold text-green-600" id="voice-percent">0%</div>
+              <div class="text-gray-600 mt-1">语音交互</div>
+            </div>
+            <div class="bg-purple-50 p-4 rounded-lg text-center">
+              <div class="text-2xl font-bold text-purple-600" id="image-percent">0%</div>
+              <div class="text-gray-600 mt-1">图像识别</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 近期交互趋势 -->
+        <div class="setting-card">
+          <h3 class="flex items-center">
+            <i class="fa fa-line-chart text-blue-500 mr-2"></i>近7天交互趋势
+          </h3>
+          <div class="mt-4 space-y-3">
+            <div class="flex items-center">
+              <span class="w-24 text-gray-600">今天</span>
+              <div class="flex-1 h-4 bg-gray-200 rounded-full overflow-hidden">
+                <div class="bg-blue-500 h-full rounded-full" id="trend-today" style="width: 0%"></div>
+              </div>
+              <span class="w-12 text-right font-medium" id="count-today">0</span>
+            </div>
+            <div class="flex items-center">
+              <span class="w-24 text-gray-600">昨天</span>
+              <div class="flex-1 h-4 bg-gray-200 rounded-full overflow-hidden">
+                <div class="bg-blue-500 h-full rounded-full" id="trend-yesterday" style="width: 0%"></div>
+              </div>
+              <span class="w-12 text-right font-medium" id="count-yesterday">0</span>
+            </div>
+            <div class="flex items-center">
+              <span class="w-24 text-gray-600">前天</span>
+              <div class="flex-1 h-4 bg-gray-200 rounded-full overflow-hidden">
+                <div class="bg-blue-500 h-full rounded-full" id="trend-day3" style="width: 0%"></div>
+              </div>
+              <span class="w-12 text-right font-medium" id="count-day3">0</span>
+            </div>
+            <div class="flex items-center">
+              <span class="w-24 text-gray-600">3天前</span>
+              <div class="flex-1 h-4 bg-gray-200 rounded-full overflow-hidden">
+                <div class="bg-blue-500 h-full rounded-full" id="trend-day4" style="width: 0%"></div>
+              </div>
+              <span class="w-12 text-right font-medium" id="count-day4">0</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 添加/编辑数据表单模态框 -->
+  <div id="data-form-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div class="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <h3 class="text-xl font-bold text-gray-800 mb-4" id="form-title">添加新数据</h3>
+      <form id="data-form">
+        <input type="hidden" id="data-id">
+        <div class="mb-4">
+          <label class="block text-gray-700 mb-2 font-medium" for="user-input">用户输入</label>
+          <textarea id="user-input" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="请输入用户的提问内容..."></textarea>
+        </div>
+        <div class="mb-4">
+          <label class="block text-gray-700 mb-2 font-medium" for="ai-response">AI响应</label>
+          <textarea id="ai-response" rows="3" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="请输入AI的回复内容..."></textarea>
+        </div>
+        <div class="mb-4">
+          <label class="block text-gray-700 mb-2 font-medium" for="interaction-type">交互类型</label>
+          <select id="interaction-type" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+            <option value="text">文本</option>
+            <option value="voice">语音</option>
+            <option value="image">图像</option>
+          </select>
+        </div>
+        <div class="mb-4">
+          <label class="block text-gray-700 mb-2 font-medium" for="interaction-time">交互时间</label>
+          <input type="datetime-local" id="interaction-time" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" readonly>
+        </div>
+        <div class="flex justify-end space-x-3 pt-4 border-t border-gray-100">
+          <button type="button" id="cancel-form" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">取消</button>
+          <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 添加/编辑用户模态框 -->
+  <div id="user-form-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div class="bg-white rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <h3 class="text-xl font-bold text-gray-800 mb-4" id="user-form-title">添加新用户</h3>
+      <form id="user-form">
+        <input type="hidden" id="user-id">
+        <div class="mb-4">
+          <label class="block text-gray-700 mb-2 font-medium" for="username">用户名</label>
+          <input type="text" id="username" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="请输入用户名">
+        </div>
+        <div class="mb-4">
+          <label class="block text-gray-700 mb-2 font-medium" for="user-email">邮箱</label>
+          <input type="email" id="user-email" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" placeholder="请输入邮箱">
+        </div>
+        <div class="mb-4">
+          <label class="block text-gray-700 mb-2 font-medium" for="user-role">用户角色</label>
+          <select id="user-role" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+            <option value="user">普通用户</option>
+            <option value="admin">管理员</option>
+          </select>
+        </div>
+        <div class="mb-4">
+          <label class="block text-gray-700 mb-2 font-medium" for="user-status">状态</label>
+          <select id="user-status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
+            <option value="active">启用</option>
+            <option value="inactive">禁用</option>
+          </select>
+        </div>
+        <div class="flex justify-end space-x-3 pt-4 border-t border-gray-100">
+          <button type="button" id="cancel-user-form" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">取消</button>
+          <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors">保存</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 确认删除模态框 -->
+  <div id="delete-confirm-modal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
+    <div class="bg-white rounded-xl p-6 w-full max-w-md">
+      <div class="text-center mb-4">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 text-red-500 mb-4">
+          <i class="fa fa-exclamation-triangle text-2xl"></i>
+        </div>
+        <h3 class="text-xl font-bold text-gray-800">确认删除</h3>
+        <p class="text-gray-600 mt-2" id="delete-confirm-text">确定要删除这条数据吗？删除后无法恢复。</p>
+      </div>
+      <div class="flex space-x-3">
+        <button id="cancel-delete" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">取消</button>
+        <button id="confirm-delete" class="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors">确认删除</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ================= 本地存储工具类 =================
+    const Storage = {
+      // 交互数据存储键
+      DATA_KEY: 'ai_interaction_data',
+      // 用户数据存储键
+      USER_KEY: 'ai_system_users',
+      // 系统设置存储键
+      SETTING_KEY: 'ai_system_settings',
+
+      // 获取交互数据
+      getData() {
+        const data = localStorage.getItem(this.DATA_KEY);
+        return data ? JSON.parse(data) : [
+          // 默认示例数据
+          {
+            id: 1,
+            user_input: '什么是人工智能？',
+            ai_response: '人工智能是研究、开发用于模拟、延伸和扩展人的智能的理论、方法、技术及应用系统的一门新的技术科学。',
+            interaction_type: 'text',
+            timestamp: new Date().getTime() - 3600000
+          },
+          {
+            id: 2,
+            user_input: '介绍一下机器学习',
+            ai_response: '机器学习是人工智能的一个分支，它使计算机系统能够在没有明确编程的情况下自动学习和改进。',
+            interaction_type: 'text',
+            timestamp: new Date().getTime() - 1800000
+          },
+          {
+            id: 3,
+            user_input: '语音查询天气',
+            ai_response: '今天天气晴朗，气温25-32℃，适合户外活动。',
+            interaction_type: 'voice',
+            timestamp: new Date().getTime() - 900000
+          },
+          {
+            id: 4,
+            user_input: '识别这张图片中的物体',
+            ai_response: '图片中包含一只猫和一本书，背景是室内环境。',
+            interaction_type: 'image',
+            timestamp: new Date().getTime() - 300000
+          }
+        ];
+      },
+
+      // 保存交互数据
+      saveData(data) {
+        localStorage.setItem(this.DATA_KEY, JSON.stringify(data));
+        return data;
+      },
+
+      // 添加交互数据
+      addData(item) {
+        const data = this.getData();
+        item.id = data.length > 0 ? Math.max(...data.map(i => i.id)) + 1 : 1;
+        data.unshift(item); // 添加到开头
+        return this.saveData(data);
+      },
+
+      // 更新交互数据
+      updateData(id, updatedItem) {
+        let data = this.getData();
+        const index = data.findIndex(item => item.id === id);
+        if (index !== -1) {
+          data[index] = { ...data[index], ...updatedItem };
+          return this.saveData(data);
+        }
+        return data;
+      },
+
+      // 删除交互数据
+      deleteData(id) {
+        let data = this.getData();
+        data = data.filter(item => item.id !== id);
+        return this.saveData(data);
+      },
+
+      // 获取用户数据
+      getUsers() {
+        const users = localStorage.getItem(this.USER_KEY);
+        return users ? JSON.parse(users) : [
+          // 默认用户
+          {
+            id: 1,
+            username: 'admin',
+            email: 'admin@example.com',
+            role: 'admin',
+            status: 'active',
+            createTime: new Date().getTime() - 86400000 * 7
+          },
+          {
+            id: 2,
+            username: 'user1',
+            email: 'user1@example.com',
+            role: 'user',
+            status: 'active',
+            createTime: new Date().getTime() - 86400000 * 3
+          }
+        ];
+      },
+
+      // 保存用户数据
+      saveUsers(users) {
+        localStorage.setItem(this.USER_KEY, JSON.stringify(users));
+        return users;
+      },
+
+      // 添加用户
+      addUser(user) {
+        const users = this.getUsers();
+        user.id = users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1;
+        user.createTime = new Date().getTime();
+        users.unshift(user);
+        return this.saveUsers(users);
+      },
+
+      // 更新用户
+      updateUser(id, updatedUser) {
+        let users = this.getUsers();
+        const index = users.findIndex(user => user.id === id);
+        if (index !== -1) {
+          users[index] = { ...users[index], ...updatedUser };
+          return this.saveUsers(users);
+        }
+        return users;
+      },
+
+      // 删除用户
+      deleteUser(id) {
+        let users = this.getUsers();
+        users = users.filter(user => user.id !== id);
+        return this.saveUsers(users);
+      },
+
+      // 获取系统设置
+      getSettings() {
+        const settings = localStorage.getItem(this.SETTING_KEY);
+        return settings ? JSON.parse(settings) : {
+          siteTitle: '本地AI交互平台',
+          siteDescription: '隐私优先的本地AI交互系统',
+          aiResponseTimeout: 10,
+          maxMessageLength: 5000,
+          enableText: true,
+          enableVoice: true,
+          enableImage: true,
+          enableHistory: true
+        };
+      },
+
+      // 保存系统设置
+      saveSettings(settings) {
+        localStorage.setItem(this.SETTING_KEY, JSON.stringify(settings));
+        return settings;
+      },
+
+      // 计算数据大小
+      getDataSize() {
+        const data = JSON.stringify({
+          data: this.getData(),
+          users: this.getUsers(),
+          settings: this.getSettings()
+        });
+        const size = new Blob([data]).size / 1024;
+        return size.toFixed(2);
+      },
+
+      // 清空所有数据
+      clearAllData() {
+        localStorage.removeItem(this.DATA_KEY);
+        localStorage.removeItem(this.USER_KEY);
+        // 保留系统设置
+        return true;
+      }
+    };
+
+    // ================= DOM元素 =================
+    // 通用元素
+    const deleteConfirmModal = document.getElementById('delete-confirm-modal');
+    const cancelDelete = document.getElementById('cancel-delete');
+    const confirmDelete = document.getElementById('confirm-delete');
+    const deleteConfirmText = document.getElementById('delete-confirm-text');
+    let deleteType = 'data'; // data/user
+    let deleteId = null;
+
+    // 数据管理元素
+    const dataTableBody = document.getElementById('data-table-body');
+    const dataFormModal = document.getElementById('data-form-modal');
+    const dataForm = document.getElementById('data-form');
+    const formTitle = document.getElementById('form-title');
+    const dataId = document.getElementById('data-id');
+    const userInput = document.getElementById('user-input');
+    const aiResponse = document.getElementById('ai-response');
+    const interactionType = document.getElementById('interaction-type');
+    const interactionTime = document.getElementById('interaction-time');
+    const cancelForm = document.getElementById('cancel-form');
+    const refreshDataBtn = document.getElementById('refresh-data');
+    const addDataBtn = document.getElementById('add-data-btn');
+    const searchInput = document.getElementById('search-input');
+    const dataCount = document.getElementById('data-count');
+
+    // 用户管理元素
+    const userTableBody = document.getElementById('user-table-body');
+    const userFormModal = document.getElementById('user-form-modal');
+    const userForm = document.getElementById('user-form');
+    const userFormTitle = document.getElementById('user-form-title');
+    const userId = document.getElementById('user-id');
+    const username = document.getElementById('username');
+    const userEmail = document.getElementById('user-email');
+    const userRole = document.getElementById('user-role');
+    const userStatus = document.getElementById('user-status');
+    const cancelUserForm = document.getElementById('cancel-user-form');
+    const addUserBtn = document.getElementById('add-user-btn');
+    const userSearchInput = document.getElementById('user-search-input');
+
+    // 系统设置元素
+    const basicSettingsForm = document.getElementById('basic-settings-form');
+    const siteTitle = document.getElementById('site-title');
+    const siteDescription = document.getElementById('site-description');
+    const aiResponseTimeout = document.getElementById('ai-response-timeout');
+    const maxMessageLength = document.getElementById('max-message-length');
+    const featureSettingsForm = document.getElementById('feature-settings-form');
+    const enableText = document.getElementById('enable-text');
+    const enableVoice = document.getElementById('enable-voice');
+    const enableImage = document.getElementById('enable-image');
+    const enableHistory = document.getElementById('enable-history');
+    const exportDataBtn = document.getElementById('export-data');
+    const clearAllDataBtn = document.getElementById('clear-all-data');
+    const dataSize = document.getElementById('data-size');
+
+    // 统计分析元素
+    const totalInteractions = document.getElementById('total-interactions');
+    const totalUsers = document.getElementById('total-users');
+    const avgResponseTime = document.getElementById('avg-response-time');
+    const textPercent = document.getElementById('text-percent');
+    const voicePercent = document.getElementById('voice-percent');
+    const imagePercent = document.getElementById('image-percent');
+
+    // 面板切换元素
+    const sidebarItems = document.querySelectorAll('.sidebar-item');
+    const functionPanels = document.querySelectorAll('.function-panel');
+    const mobileTabs = document.querySelectorAll('.md\\:hidden button');
+
+    // ================= 页面加载初始化 =================
+    document.addEventListener('DOMContentLoaded', () => {
+      // 加载所有数据
+      renderDataTable();
+      renderUserTable();
+      loadSettings();
+      updateStatistics();
+      updateDataSize();
+
+      // 设置当前时间为默认时间（新增时自动填充）
+      setCurrentDateTime();
+
+      // 全局删除按钮事件监听（修复用户删除问题的核心）
+      document.addEventListener('click', (e) => {
+        if (e.target.closest('.delete-btn')) {
+          const btn = e.target.closest('.delete-btn');
+          const type = btn.getAttribute('data-type');
+          const id = parseInt(btn.getAttribute('data-id'));
+          showDeleteConfirm(type, id);
+        }
+      });
+    });
+
+    // 设置当前日期时间
+    function setCurrentDateTime() {
+      const now = new Date();
+      const dateTimeStr = now.toISOString().slice(0, 16);
+      interactionTime.value = dateTimeStr;
+    }
+
+    // ================= 面板切换功能 =================
+    // 侧边栏切换
+    sidebarItems.forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.preventDefault();
+        const panelId = item.getAttribute('data-panel');
+
+        // 更新侧边栏激活状态
+        sidebarItems.forEach(i => i.classList.remove('active'));
+        item.classList.add('active');
+
+        // 显示对应面板
+        functionPanels.forEach(panel => {
+          panel.classList.remove('active');
+        });
+        document.getElementById(panelId).classList.add('active');
+      });
+    });
+
+    // 移动端Tab切换
+    mobileTabs.forEach(tab => {
+      tab.addEventListener('click', () => {
+        const panelId = tab.getAttribute('data-panel');
+
+        // 更新Tab激活状态
+        mobileTabs.forEach(t => t.classList.remove('tab-active'));
+        tab.classList.add('tab-active');
+
+        // 显示对应面板
+        functionPanels.forEach(panel => {
+          panel.classList.remove('active');
+        });
+        document.getElementById(panelId).classList.add('active');
+
+        // 同步更新侧边栏状态
+        sidebarItems.forEach(item => {
+          if (item.getAttribute('data-panel') === panelId) {
+            sidebarItems.forEach(i => i.classList.remove('active'));
+            item.classList.add('active');
+          }
+        });
+      });
+    });
+
+    // ================= 数据管理功能 =================
+    // 加载数据表格
+    function renderDataTable(filterText = '') {
+      const data = Storage.getData();
+      dataCount.textContent = data.length;
+
+      // 过滤数据
+      const filteredData = data.filter(item => {
+        if (!filterText) return true;
+        const text = (item.user_input + item.ai_response).toLowerCase();
+        return text.includes(filterText.toLowerCase());
+      });
+
+      if (filteredData.length === 0) {
+        dataTableBody.innerHTML = `
+          <tr>
+            <td colspan="6" class="text-center py-8 text-gray-500">
+              <i class="fa fa-folder-open-o mr-2"></i>暂无匹配数据
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      // 修复编辑按钮的参数传递问题：使用data-id属性而非直接传递对象
+      dataTableBody.innerHTML = filteredData.map(item => `
+        <tr class="hover:bg-gray-50 transition-colors">
+          <td class="font-medium text-gray-800">${item.id}</td>
+          <td class="text-gray-700">${item.user_input.substring(0, 60)}${item.user_input.length > 60 ? '...' : ''}</td>
+          <td class="text-gray-700">${item.ai_response.substring(0, 60)}${item.ai_response.length > 60 ? '...' : ''}</td>
+          <td>
+            <span class="px-2 py-1 rounded-full text-xs ${
+              item.interaction_type === 'text' ? 'bg-blue-100 text-blue-800' :
+              item.interaction_type === 'voice' ? 'bg-green-100 text-green-800' :
+              'bg-purple-100 text-purple-800'
+            }">
+              ${item.interaction_type === 'text' ? '文本' : item.interaction_type === 'voice' ? '语音' : '图像'}
+            </span>
+          </td>
+          <td class="text-gray-600">${new Date(item.timestamp).toLocaleString()}</td>
+          <td>
+            <button class="action-btn bg-blue-500 text-white mr-2 edit-data-btn" data-id="${item.id}">
+              <i class="fa fa-edit"></i> 编辑
+            </button>
+            <button class="action-btn bg-red-500 text-white delete-btn" data-type="data" data-id="${item.id}">
+              <i class="fa fa-trash"></i> 删除
+            </button>
+          </td>
+        </tr>
+      `).join('');
+
+      // 为编辑按钮添加事件监听（修复原问题的核心）
+      document.querySelectorAll('.edit-data-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = parseInt(btn.getAttribute('data-id'));
+          const data = Storage.getData();
+          const item = data.find(item => item.id === id);
+          if (item) {
+            editData(item);
+          }
+        });
+      });
+    }
+
+    // 刷新数据
+    refreshDataBtn.addEventListener('click', () => {
+      renderDataTable();
+      showNotification('数据已刷新', 'success');
+    });
+
+    // 添加新数据
+    addDataBtn.addEventListener('click', () => {
+      formTitle.textContent = '添加新数据';
+      dataForm.reset();
+      dataId.value = '';
+      // 自动填充当前时间
+      setCurrentDateTime();
+      dataFormModal.classList.remove('hidden');
+    });
+
+    // 取消表单
+    cancelForm.addEventListener('click', () => {
+      dataFormModal.classList.add('hidden');
+    });
+
+    // 提交数据表单
+    dataForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const data = {
+        user_input: userInput.value.trim(),
+        ai_response: aiResponse.value.trim(),
+        interaction_type: interactionType.value,
+        timestamp: new Date(interactionTime.value).getTime()
+      };
+
+      if (!data.user_input || !data.ai_response) {
+        showNotification('用户输入和AI响应不能为空', 'error');
+        return;
+      }
+
+      try {
+        if (dataId.value) {
+          // 更新数据
+          Storage.updateData(parseInt(dataId.value), data);
+          showNotification('数据更新成功', 'success');
+        } else {
+          // 添加新数据 - 使用当前实际时间
+          data.timestamp = new Date().getTime();
+          Storage.addData(data);
+          showNotification('数据添加成功', 'success');
+        }
+
+        dataFormModal.classList.add('hidden');
+        renderDataTable();
+        updateStatistics();
+      } catch (error) {
+        console.error('操作失败:', error);
+        showNotification('操作失败，请重试', 'error');
+      }
+    });
+
+    // 搜索数据
+    searchInput.addEventListener('keyup', (e) => {
+      const searchText = e.target.value.trim();
+      renderDataTable(searchText);
+    });
+
+    // ================= 用户管理功能 =================
+    // 加载用户表格
+    function renderUserTable(filterText = '') {
+      const users = Storage.getUsers();
+
+      // 过滤用户
+      const filteredUsers = users.filter(user => {
+        if (!filterText) return true;
+        const text = (user.username + user.email).toLowerCase();
+        return text.includes(filterText.toLowerCase());
+      });
+
+      if (filteredUsers.length === 0) {
+        userTableBody.innerHTML = `
+          <tr>
+            <td colspan="7" class="text-center py-8 text-gray-500">
+              <i class="fa fa-user-o mr-2"></i>暂无匹配用户
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      // 修复用户编辑和删除按钮的参数传递问题
+      userTableBody.innerHTML = filteredUsers.map(user => `
+        <tr class="hover:bg-gray-50 transition-colors">
+          <td class="font-medium text-gray-800">${user.id}</td>
+          <td class="text-gray-700">${user.username}</td>
+          <td class="text-gray-700">${user.email}</td>
+          <td>
+            <span class="px-2 py-1 rounded-full text-xs ${
+              user.role === 'admin' ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
+            }">
+              ${user.role === 'admin' ? '管理员' : '普通用户'}
+            </span>
+          </td>
+          <td class="text-gray-600">${new Date(user.createTime).toLocaleString()}</td>
+          <td>
+            <span class="px-2 py-1 rounded-full text-xs ${
+              user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+            }">
+              ${user.status === 'active' ? '启用' : '禁用'}
+            </span>
+          </td>
+          <td>
+            <button class="action-btn bg-blue-500 text-white mr-2 edit-user-btn" data-id="${user.id}">
+              <i class="fa fa-edit"></i> 编辑
+            </button>
+            <button class="action-btn bg-red-500 text-white delete-btn" data-type="user" data-id="${user.id}">
+              <i class="fa fa-trash"></i> 删除
+            </button>
+          </td>
+        </tr>
+      `).join('');
+
+      // 为用户编辑按钮添加事件监听
+      document.querySelectorAll('.edit-user-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const id = parseInt(btn.getAttribute('data-id'));
+          const users = Storage.getUsers();
+          const user = users.find(user => user.id === id);
+          if (user) {
+            editUser(user);
+          }
+        });
+      });
+    }
+
+    // 添加新用户
+    addUserBtn.addEventListener('click', () => {
+      userFormTitle.textContent = '添加新用户';
+      userForm.reset();
+      userId.value = '';
+      userFormModal.classList.remove('hidden');
+    });
+
+    // 取消用户表单
+    cancelUserForm.addEventListener('click', () => {
+      userFormModal.classList.add('hidden');
+    });
+
+    // 提交用户表单
+    userForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const user = {
+        username: username.value.trim(),
+        email: userEmail.value.trim(),
+        role: userRole.value,
+        status: userStatus.value
+      };
+
+      if (!user.username || !user.email) {
+        showNotification('用户名和邮箱不能为空', 'error');
+        return;
+      }
+
+      // 简单邮箱验证
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(user.email)) {
+        showNotification('请输入有效的邮箱地址', 'error');
+        return;
+      }
+
+      try {
+        if (userId.value) {
+          // 更新用户
+          Storage.updateUser(parseInt(userId.value), user);
+          showNotification('用户更新成功', 'success');
+        } else {
+          // 添加新用户
+          Storage.addUser(user);
+          showNotification('用户添加成功', 'success');
+        }
+
+        userFormModal.classList.add('hidden');
+        renderUserTable();
+        updateStatistics();
+      } catch (error) {
+        console.error('操作失败:', error);
+        showNotification('操作失败，请重试', 'error');
+      }
+    });
+
+    // 搜索用户
+    userSearchInput.addEventListener('keyup', (e) => {
+      const searchText = e.target.value.trim();
+      renderUserTable(searchText);
+    });
+
+    // ================= 系统设置功能 =================
+    // 加载系统设置
+    function loadSettings() {
+      const settings = Storage.getSettings();
+      siteTitle.value = settings.siteTitle || '';
+      siteDescription.value = settings.siteDescription || '';
+      aiResponseTimeout.value = settings.aiResponseTimeout || 10;
+      maxMessageLength.value = settings.maxMessageLength || 5000;
+      enableText.checked = settings.enableText !== false;
+      enableVoice.checked = settings.enableVoice !== false;
+      enableImage.checked = settings.enableImage !== false;
+      enableHistory.checked = settings.enableHistory !== false;
+    }
+
+    // 保存基础设置
+    basicSettingsForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const settings = Storage.getSettings();
+      const updatedSettings = {
+        ...settings,
+        siteTitle: siteTitle.value.trim(),
+        siteDescription: siteDescription.value.trim(),
+        aiResponseTimeout: parseInt(aiResponseTimeout.value) || 10,
+        maxMessageLength: parseInt(maxMessageLength.value) || 5000
+      };
+
+      Storage.saveSettings(updatedSettings);
+      showNotification('基础设置保存成功', 'success');
+    });
+
+    // 保存功能设置
+    featureSettingsForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const settings = Storage.getSettings();
+      const updatedSettings = {
+        ...settings,
+        enableText: enableText.checked,
+        enableVoice: enableVoice.checked,
+        enableImage: enableImage.checked,
+        enableHistory: enableHistory.checked
+      };
+
+      Storage.saveSettings(updatedSettings);
+      showNotification('功能设置保存成功', 'success');
+    });
+
+    // 导出数据
+    exportDataBtn.addEventListener('click', () => {
+      const exportData = {
+        interactionData: Storage.getData(),
+        userData: Storage.getUsers(),
+        settings: Storage.getSettings(),
+        exportTime: new Date().toLocaleString()
+      };
+
+      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `ai_platform_data_${new Date().getTime()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      showNotification('数据导出成功', 'success');
+    });
+
+    // 清空所有数据
+    clearAllDataBtn.addEventListener('click', () => {
+      if (confirm('确定要清空所有数据吗？此操作不可恢复！')) {
+        Storage.clearAllData();
+        renderDataTable();
+        renderUserTable();
+        updateStatistics();
+        updateDataSize();
+        showNotification('所有数据已清空', 'success');
+      }
+    });
+
+    // 更新数据大小显示
+    function updateDataSize() {
+      dataSize.textContent = `${Storage.getDataSize()} KB`;
+    }
+
+    // ================= 统计分析功能 =================
+    function updateStatistics() {
+      const data = Storage.getData();
+      const users = Storage.getUsers();
+
+      // 基础统计
+      totalInteractions.textContent = data.length;
+      totalUsers.textContent = users.length;
+      avgResponseTime.textContent = '1.2s'; // 模拟数据
+
+      // 交互类型分布
+      const textCount = data.filter(item => item.interaction_type === 'text').length;
+      const voiceCount = data.filter(item => item.interaction_type === 'voice').length;
+      const imageCount = data.filter(item => item.interaction_type === 'image').length;
+      const total = data.length;
+
+      textPercent.textContent = total > 0 ? `${Math.round((textCount / total) * 100)}%` : '0%';
+      voicePercent.textContent = total > 0 ? `${Math.round((voiceCount / total) * 100)}%` : '0%';
+      imagePercent.textContent = total > 0 ? `${Math.round((imageCount / total) * 100)}%` : '0%';
+
+      // 模拟趋势数据（随机生成）
+      const trends = [
+        Math.floor(Math.random() * 50),
+        Math.floor(Math.random() * 40),
+        Math.floor(Math.random() * 30),
+        Math.floor(Math.random() * 20)
+      ];
+      const maxTrend = Math.max(...trends, 1);
+
+      document.getElementById('count-today').textContent = trends[0];
+      document.getElementById('trend-today').style.width = `${(trends[0] / maxTrend) * 100}%`;
+
+      document.getElementById('count-yesterday').textContent = trends[1];
+      document.getElementById('trend-yesterday').style.width = `${(trends[1] / maxTrend) * 100}%`;
+
+      document.getElementById('count-day3').textContent = trends[2];
+      document.getElementById('trend-day3').style.width = `${(trends[2] / maxTrend) * 100}%`;
+
+      document.getElementById('count-day4').textContent = trends[3];
+      document.getElementById('trend-day4').style.width = `${(trends[3] / maxTrend) * 100}%`;
+    }
+
+    // ================= 删除确认功能 =================
+    // 显示删除确认
+    function showDeleteConfirm(type, id) {
+      deleteType = type;
+      deleteId = id;
+      deleteConfirmText.textContent = type === 'data'
+        ? '确定要删除这条交互数据吗？删除后无法恢复。'
+        : '确定要删除这个用户吗？删除后无法恢复。';
+      deleteConfirmModal.classList.remove('hidden');
+    }
+
+    // 取消删除
+    cancelDelete.addEventListener('click', () => {
+      deleteConfirmModal.classList.add('hidden');
+      deleteId = null;
+    });
+
+    // 确认删除（修复用户删除逻辑）
+    confirmDelete.addEventListener('click', () => {
+      if (deleteId === null) return;
+
+      try {
+        // 增加安全检查：不允许删除最后一个管理员用户
+        if (deleteType === 'user') {
+          const users = Storage.getUsers();
+          const userToDelete = users.find(u => u.id === deleteId);
+
+          // 检查是否是管理员
+          if (userToDelete && userToDelete.role === 'admin') {
+            const adminCount = users.filter(u => u.role === 'admin').length;
+            if (adminCount <= 1) {
+              showNotification('无法删除最后一个管理员用户！', 'error');
+              deleteConfirmModal.classList.add('hidden');
+              deleteId = null;
+              return;
+            }
+          }
+        }
+
+        if (deleteType === 'data') {
+          Storage.deleteData(deleteId);
+          renderDataTable();
+          showNotification('数据删除成功', 'success');
+        } else {
+          Storage.deleteUser(deleteId);
+          renderUserTable(); // 确保删除后刷新用户表格
+          showNotification('用户删除成功', 'success');
+        }
+
+        deleteConfirmModal.classList.add('hidden');
+        deleteId = null;
+        updateStatistics();
+        updateDataSize();
+      } catch (error) {
+        console.error('删除失败:', error);
+        showNotification('删除失败，请重试', 'error');
+      }
+    });
+
+    // ================= 编辑功能 =================
+    // 编辑数据
+    function editData(item) {
+      formTitle.textContent = '编辑数据';
+      dataId.value = item.id;
+      userInput.value = item.user_input;
+      aiResponse.value = item.ai_response;
+      interactionType.value = item.interaction_type;
+      // 转换时间格式
+      const dateTimeStr = new Date(item.timestamp).toISOString().slice(0, 16);
+      interactionTime.value = dateTimeStr;
+      dataFormModal.classList.remove('hidden');
+    }
+
+    // 编辑用户
+    function editUser(user) {
+      userFormTitle.textContent = '编辑用户';
+      userId.value = user.id;
+      username.value = user.username;
+      userEmail.value = user.email;
+      userRole.value = user.role;
+      userStatus.value = user.status;
+      userFormModal.classList.remove('hidden');
+    }
+
+    // ================= 通知功能 =================
+    function showNotification(message, type) {
+      // 创建通知元素
+      const notification = document.createElement('div');
+      notification.className = `fixed top-20 right-4 px-4 py-3 rounded-lg shadow-lg z-50 flex items-center transition-all duration-300 transform translate-y-[-20px] opacity-0`;
+
+      // 设置样式
+      if (type === 'success') {
+        notification.classList.add('bg-green-500', 'text-white');
+        notification.innerHTML = `<i class="fa fa-check-circle mr-2"></i>${message}`;
+      } else {
+        notification.classList.add('bg-red-500', 'text-white');
+        notification.innerHTML = `<i class="fa fa-exclamation-circle mr-2"></i>${message}`;
+      }
+
+      // 添加到页面
+      document.body.appendChild(notification);
+
+      // 显示动画
+      setTimeout(() => {
+        notification.classList.remove('translate-y-[-20px]', 'opacity-0');
+      }, 10);
+
+      // 3秒后隐藏
+      setTimeout(() => {
+        notification.classList.add('translate-y-[-20px]', 'opacity-0');
+        setTimeout(() => {
+          document.body.removeChild(notification);
+        }, 300);
+      }, 3000);
+    }
+  </script>
+</body>
+</html>

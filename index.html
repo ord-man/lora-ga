@@ -1,0 +1,1208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>青春智伴-校园通</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Font Awesome -->
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet" />
+  <!-- 图谱可视化库 -->
+  <script src="https://visjs.github.io/vis-network/standalone/umd/vis-network.min.js"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      overflow: hidden; /* 隐藏页面整体滚动条 */
+    }
+    .tab-active {
+      border-bottom: 3px solid #3B82F6;
+      color:#3B82F6;
+      font-weight:600;
+    }
+    .interaction-card {
+      transition: all .3s ease;
+    }
+    .interaction-card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 25px -5px rgba(0,0,.1);
+    }
+    pre {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    /* 关键优化：消息容器占满所有可用高度 */
+    .message-container {
+      height: calc(100% - 120px); /* 减去输入区高度 */
+      overflow-y: auto;
+    }
+    .user-message {
+      background-color: #3B82F6;
+      color: white;
+      align-self: flex-end;
+    }
+    .ai-message {
+      background-color: #f5f5f5;
+      align-self: flex-start;
+    }
+    .message-bubble {
+      border-radius: 12px;
+      max-width: 85%;
+      padding: 10px 16px;
+      margin: 6px 0;
+    }
+    .voice-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+    .voice-btn.recording {
+      animation: pulse 1.5s infinite;
+      background-color: #ef4444 !important;
+    }
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+      70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
+    .sidebar-item {
+      transition: all 0.2s;
+    }
+    .sidebar-item:hover {
+      background-color: #f0f9ff;
+      color: #3B82F6;
+    }
+    .sidebar-item.active {
+      background-color: #e0f2fe;
+      color: #3B82F6;
+      font-weight: 600;
+    }
+    /* 移除管理员链接特殊样式，统一风格 */
+    .admin-link {
+      background-color: transparent;
+      border-left: none;
+    }
+    .admin-link:hover {
+      background-color: #f0f9ff !important;
+    }
+    /* 聊天历史项样式优化：添加删除按钮 */
+    .chat-history-item {
+      position: relative;
+    }
+    .chat-history-item .delete-history-btn {
+      opacity: 0;
+      transition: opacity 0.2s;
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #ef4444;
+      cursor: pointer;
+    }
+    .chat-history-item:hover .delete-history-btn {
+      opacity: 1;
+    }
+    /* 新对话按钮样式 */
+    .new-chat-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: #3B82F6;
+      color: white;
+      font-size: 18px;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 2px 6px rgba(59, 130, 246, 0.2);
+    }
+    .new-chat-btn:hover {
+      background-color: #2563eb;
+      transform: scale(1.05);
+    }
+    /* 滚动条美化 */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #c1c1c1;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #a1a1a1;
+    }
+    /* 图谱面板特定样式 */
+    .graph-panel {
+      padding: 1.5rem;
+    }
+    .graph-controls {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    .graph-input {
+      flex: 1;
+      min-width: 200px;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid #d1d5db;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+    }
+    .graph-input:focus {
+      outline: none;
+      border-color: #f97316;
+      box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
+    }
+    .graph-btn {
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .graph-btn-primary {
+      background-color: #f97316;
+      color: white;
+    }
+    .graph-btn-primary:hover {
+      background-color: #ea580c;
+    }
+    .graph-btn-secondary {
+      background-color: #f3f4f6;
+      color: #374151;
+    }
+    .graph-btn-secondary:hover {
+      background-color: #e5e7eb;
+    }
+    #graph-container {
+      width: 100%;
+      height: 400px;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.5rem;
+      background-color: #ffffff;
+    }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen font-sans">
+  <!-- 顶部导航：固定在顶部，全屏宽度 -->
+  <header class="bg-white shadow-md fixed top-0 left-0 right-0 z-50 h-16 flex items-center">
+    <div class="px-4 flex justify-between items-center w-full">
+      <div class="flex items-center space-x-2">
+        <i class="fa fa-brain text-2xl text-blue-500"></i>
+        <h1 class="text-xl font-bold text-gray-800">青春智伴-校园通</h1>
+      </div>
+      <nav>
+        <a href="#" class="text-gray-600 hover:text-blue-500 mx-3">帮助</a>
+        <a href="#" class="text-gray-600 hover:text-blue-500 mx-3">关于</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- 主体内容：全屏高度，左右无间距 -->
+  <main class="flex h-screen pt-16">
+    <!-- 左侧边栏：紧贴最左侧，固定宽度，全屏高度 -->
+    <div class="w-60 bg-white shadow-md p-4 hidden md:block h-full overflow-y-auto border-r border-gray-200">
+      <!-- 左侧边栏标题：添加新对话按钮 -->
+      <div class="flex justify-between items-center mb-6 pb-3 border-b border-gray-100">
+        <h3 class="font-bold text-gray-800">功能菜单</h3>
+        <div class="flex items-center space-x-2">
+          <button id="new-chat-btn" class="new-chat-btn" title="新对话">
+            <i class="fa fa-plus"></i>
+          </button>
+          <button id="clear-history" class="text-sm text-gray-500 hover:text-red-500">
+            <i class="fa fa-trash-o mr-1"></i>清空历史
+          </button>
+        </div>
+      </div>
+
+      <!-- 功能入口 -->
+      <div class="space-y-1 mb-8">
+        <a href="#" class="sidebar-item active flex items-center px-3 py-2 rounded-lg text-gray-700" data-type="text">
+          <i class="fa fa-comment-o w-5 text-center mr-2"></i>文本交互
+        </a>
+        <a href="#" class="sidebar-item flex items-center px-3 py-2 rounded-lg text-gray-700" data-type="voice">
+          <i class="fa fa-microphone w-5 text-center mr-2"></i>语音交互
+        </a>
+        <a href="#" class="sidebar-item flex items-center px-3 py-2 rounded-lg text-gray-700" data-type="image">
+          <i class="fa fa-image w-5 text-center mr-2"></i>图像识别
+        </a>
+        <a href="#" class="sidebar-item flex items-center px-3 py-2 rounded-lg text-gray-700" data-type="graph">
+        <i class="fa fa-sitemap w-5 text-center mr-2 text-orange-500"></i>图谱可视化
+        </a>
+        <!-- 统一管理员图标样式，移除特殊蓝边 -->
+        <a href="admin.html" class="sidebar-item admin-link flex items-center px-3 py-2 rounded-lg text-gray-700" onclick="window.location.href='admin.html'">
+          <i class="fa fa-cog w-5 text-center mr-2"></i>管理员后台
+        </a>
+      </div>
+
+      <!-- 历史聊天记录：占满剩余高度 -->
+      <div class="h-[calc(100%-200px)] flex flex-col">
+        <h4 class="font-medium text-gray-500 mb-3 text-sm uppercase tracking-wider">历史聊天</h4>
+        <div id="chat-history" class="space-y-1 flex-1 overflow-y-auto">
+          <!-- 历史聊天记录会动态添加 -->
+          <div class="chat-history-item flex items-center px-3 py-2 rounded-lg text-gray-700 text-sm hover:bg-gray-50 cursor-pointer" data-id="current">
+            <i class="fa fa-clock-o w-5 text-center mr-2 text-gray-400"></i>
+            <span class="truncate">当前会话</span>
+            <i class="fa fa-times-circle delete-history-btn" title="删除对话" style="opacity: 0;"></i>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧主交互区：占据剩余全部空间，全屏高度 -->
+    <div class="flex-1 bg-gray-50 flex flex-col h-full">
+      <!-- 移动端Tab切换（仅移动端显示） -->
+      <div class="flex justify-center border-b border-gray-200 md:hidden overflow-x-auto">
+        <button id="text-tab-btn" class="tab-active px-4 py-3 text-gray-700 hover:text-blue-500 text-sm whitespace-nowrap">
+          <i class="fa fa-comment mr-1"></i>文本
+        </button>
+        <button id="voice-tab-btn" class="px-4 py-3 text-gray-700 hover:text-blue-500 text-sm whitespace-nowrap">
+          <i class="fa fa-microphone mr-1"></i>语音
+        </button>
+        <button id="image-tab-btn" class="px-4 py-3 text-gray-700 hover:text-blue-500 text-sm whitespace-nowrap">
+          <i class="fa fa-image mr-1"></i>图像
+        </button>
+        <button id="graph-tab-btn" class="px-4 py-3 text-gray-700 hover:text-blue-500 text-sm whitespace-nowrap">
+          <i class="fa fa-project-diagram mr-1"></i>图谱
+        </button>
+        <!-- 移动端添加新对话按钮 -->
+        <button id="mobile-new-chat-btn" class="px-4 py-3 text-gray-700 hover:text-blue-500 text-sm whitespace-nowrap">
+          <i class="fa fa-plus mr-1"></i>新对话
+        </button>
+        <!-- 统一管理员图标样式 -->
+        <a href="admin.html" class="px-4 py-3 text-gray-700 hover:text-blue-500 text-sm whitespace-nowrap" onclick="window.location.href='admin.html'">
+          <i class="fa fa-cog mr-1"></i>管理
+        </a>
+      </div>
+
+      <!-- 聊天交互区域：占满全部高度（默认显示） -->
+      <div id="chat-panel" class="bg-white flex-1 flex flex-col h-full">
+        <!-- 聊天记录区域：占满所有可用高度 -->
+        <div class="message-container p-6 bg-gray-50">
+          <div id="message-list" class="flex flex-col h-full">
+            <!-- 消息会动态添加到这里 -->
+            <div class="flex items-start mb-6">
+              <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-500 mr-3 flex-shrink-0">
+                <i class="fa fa-robot"></i>
+              </div>
+              <div class="ai-message message-bubble">
+                您好！我是小苏，有什么可以帮助您的吗？
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 输入区域：固定在底部，全屏宽度 -->
+        <div class="flex items-end space-x-3 p-4 border-t border-gray-200 bg-white">
+          <textarea id="text-input" rows="2" class="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none resize-none" placeholder="请输入你想与AI交流的内容..."></textarea>
+          <div class="flex flex-col space-y-2">
+            <button id="voice-small-btn" class="voice-btn bg-gray-100 hover:bg-gray-200 text-gray-700">
+              <i class="fa fa-microphone"></i>
+            </button>
+            <button id="text-submit" class="w-10 h-10 rounded-full bg-blue-500 hover:bg-blue-600 text-white flex items-center justify-center">
+              <i class="fa fa-paper-plane"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 语音交互面板（隐藏状态） -->
+      <div id="voice-interaction" class="interaction-card bg-white shadow-md p-6 hidden h-full flex items-center justify-center">
+        <div class="text-center space-y-4 w-full max-w-md">
+          <p class="text-gray-700">点击开始录音，再点击停止并上传（16k 单声道 WAV）</p>
+          <div class="flex items-center justify-center space-x-4">
+            <button id="startBtn" class="px-6 py-3 rounded-lg bg-green-500 hover:bg-green-600 text-white text-base">
+              <i class="fa fa-microphone mr-2"></i>开始录音
+            </button>
+            <button id="stopBtn" class="px-6 py-3 rounded-lg bg-gray-400 text-white text-base" disabled>
+              <i class="fa fa-stop mr-2"></i>停止并上传
+            </button>
+          </div>
+          <p id="status" class="text-gray-500 text-lg">未开始录音</p>
+          <div id="voice-transcript" class="mt-4 p-4 bg-gray-50 rounded-lg hidden text-left">
+            <h4 class="font-medium text-gray-800 mb-2">语音识别结果：</h4>
+            <p id="transcript-text" class="text-gray-700"></p>
+            <p id="asr-note" class="text-xs text-gray-500 mt-2"></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- 图像识别面板（隐藏状态） -->
+      <div id="image-interaction" class="interaction-card bg-white shadow-md p-6 hidden h-full flex items-center justify-center">
+        <div class="text-center w-full max-w-2xl">
+          <p class="text-gray-700 mb-6 text-lg">上传图像文件（JPG/PNG），AI 将分析内容</p>
+          <div id="image-drop-area" class="border-2 border-dashed border-gray-300 rounded-lg p-8 mb-6 hover:border-blue-500 transition-colors cursor-pointer">
+            <i class="fa fa-cloud-upload text-4xl text-gray-400 mb-3"></i>
+            <p class="text-gray-500">拖放图像到这里，或<span class="text-blue-500 font-medium">点击上传</span></p>
+            <input type="file" id="image-upload-input" accept="image/jpeg,image/png" class="hidden" />
+          </div>
+          <div id="image-preview-container" class="hidden mb-6">
+            <h4 class="font-medium text-gray-800 mb-3">图像预览：</h4>
+            <img id="image-preview" src="" alt="预览图像" class="max-w-full max-h-64 mx-auto rounded-lg shadow-sm" />
+          </div>
+          <button id="image-analyze-btn" class="bg-purple-500 hover:bg-purple-600 text-white px-8 py-3 rounded-lg transition-colors hidden text-base">
+            <i class="fa fa-search mr-2"></i>AI分析图像
+          </button>
+        </div>
+      </div>
+
+      <!-- Neo4j图谱可视化面板（隐藏状态） -->
+      <div id="graph-interaction" class="bg-white hidden h-full flex flex-col">
+        <div class="graph-panel flex-1">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-800">Neo4j图谱可视化</h3>
+            <span class="text-sm text-gray-500">拖拽节点 | 滚轮缩放 | 点击查看详情</span>
+          </div>
+
+          <!-- 筛选和控制区 -->
+          <div class="graph-controls">
+            <input type="text" id="graph-label-filter" placeholder="输入节点标签筛选（如Person、Company）" class="graph-input">
+            <button id="graph-refresh" class="graph-btn graph-btn-primary">
+              <i class="fa fa-refresh mr-1"></i>刷新图谱
+            </button>
+            <button id="graph-clear" class="graph-btn graph-btn-secondary">
+              <i class="fa fa-eraser mr-1"></i>清空
+            </button>
+          </div>
+
+          <!-- 图谱展示区 -->
+          <div id="graph-container"></div>
+
+          <!-- 状态提示 -->
+          <div class="mt-3 flex items-center justify-between text-sm">
+            <div id="graph-status" class="text-gray-500">
+              准备加载图谱数据，点击"刷新图谱"开始
+            </div>
+            <div id="graph-stats" class="text-gray-500"></div>
+          </div>
+          <div id="graph-loading" class="hidden mt-2 text-sm text-orange-500">
+            <i class="fa fa-spinner fa-spin mr-1"></i>正在加载图谱数据...
+          </div>
+          <div id="graph-error" class="hidden mt-2 text-sm text-red-500"></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- 移动端底部footer（仅移动端显示） -->
+  <footer class="bg-white border-t border-gray-200 py-2 md:hidden">
+    <div class="text-center text-gray-500 text-sm">
+      <p>&copy; 2024 青春智伴-校园通 | 隐私优先，本地部署</p>
+    </div>
+  </footer>
+
+  <!-- 前端交互脚本 -->
+  <script>
+    // 全局变量：当前会话ID和会话存储
+    let currentChatId = 'current';
+    let chatSessions = {
+      'current': {
+        title: '当前会话',
+        messages: [
+          {
+            content: '您好！我是小苏，有什么可以帮助您的吗？',
+            sender: 'ai',
+            timestamp: new Date().getTime()
+          }
+        ]
+      }
+    };
+
+    // 图谱可视化全局变量
+    let networkInstance = null;
+
+    // DOM元素
+    const messageList = document.getElementById('message-list');
+    const textInput = document.getElementById('text-input');
+    const textSubmitBtn = document.getElementById('text-submit');
+    const voiceSmallBtn = document.getElementById('voice-small-btn');
+    const chatHistory = document.getElementById('chat-history');
+    const clearHistoryBtn = document.getElementById('clear-history');
+    const newChatBtn = document.getElementById('new-chat-btn');
+    const mobileNewChatBtn = document.getElementById('mobile-new-chat-btn');
+
+    // 更新tabs对象，包含图谱
+    const tabs = {
+      text: document.getElementById('text-tab-btn'),
+      voice: document.getElementById('voice-tab-btn'),
+      image: document.getElementById('image-tab-btn'),
+      graph: document.getElementById('graph-tab-btn')
+    };
+
+    // 更新panels对象，包含图谱
+    const panels = {
+      text: document.getElementById('chat-panel'),
+      voice: document.getElementById('voice-interaction'),
+      image: document.getElementById('image-interaction'),
+      graph: document.getElementById('graph-interaction')
+    };
+
+    // 语音相关 DOM
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
+    const statusEl = document.getElementById('status');
+    const voiceTranscriptBox = document.getElementById('voice-transcript');
+    const transcriptText = document.getElementById('transcript-text');
+    const asrNote = document.getElementById('asr-note');
+
+    let mediaRecorder = null;
+    let audioChunks = [];
+
+    // Tab切换逻辑
+    Object.keys(tabs).forEach(key => {
+      if (tabs[key]) {
+        tabs[key].addEventListener('click', () => {
+          // 更新Tab样式
+          Object.values(tabs).forEach(tab => tab.classList.remove('tab-active'));
+          tabs[key].classList.add('tab-active');
+
+          // 显示对应面板
+          Object.values(panels).forEach(panel => panel.classList.add('hidden'));
+          panels[key].classList.remove('hidden');
+
+          // 如果切换到图谱面板，延迟加载数据
+          if (key === 'graph') {
+            setTimeout(() => {
+              if (!networkInstance) {
+                loadGraphData();
+              }
+            }, 100);
+          }
+        });
+      }
+    });
+
+    // 新对话功能
+    function createNewChat() {
+      const chatId = 'chat_' + new Date().getTime();
+      chatSessions[chatId] = {
+        title: '新对话',
+        messages: [
+          {
+            content: '您好！我是小苏，有什么可以帮助您的吗？',
+            sender: 'ai',
+            timestamp: new Date().getTime()
+          }
+        ]
+      };
+      switchToChat(chatId);
+      renderChatHistory();
+    }
+
+    // 切换会话
+    function switchToChat(chatId) {
+      currentChatId = chatId;
+      messageList.innerHTML = '';
+      const messages = chatSessions[chatId].messages;
+      messages.forEach(msg => {
+        addMessage(msg.content, msg.sender, false);
+      });
+
+      document.querySelectorAll('.chat-history-item').forEach(item => {
+        item.classList.remove('bg-gray-100', 'font-medium');
+        if (item.getAttribute('data-id') === chatId) {
+          item.classList.add('bg-gray-100', 'font-medium');
+        }
+      });
+    }
+
+    // 渲染聊天历史列表
+    function renderChatHistory() {
+      chatHistory.innerHTML = '';
+
+      const sortedChatIds = Object.keys(chatSessions).sort((a, b) => {
+        if (a === 'current') return 1;
+        if (b === 'current') return -1;
+        return chatSessions[b].messages[0].timestamp - chatSessions[a].messages[0].timestamp;
+      });
+
+      sortedChatIds.forEach(chatId => {
+        const session = chatSessions[chatId];
+        const historyItem = document.createElement('div');
+        historyItem.className = `chat-history-item flex items-center px-3 py-2 rounded-lg text-gray-700 text-sm hover:bg-gray-50 cursor-pointer ${chatId === currentChatId ? 'bg-gray-100 font-medium' : ''}`;
+        historyItem.setAttribute('data-id', chatId);
+
+        let iconClass = 'fa-comment-o';
+        if (chatId === 'current') {
+          iconClass = 'fa-clock-o';
+        }
+
+        historyItem.innerHTML = `
+          <i class="fa ${iconClass} w-5 text-center mr-2 text-gray-400"></i>
+          <span class="truncate">${escapeHtml(session.title)}</span>
+          <i class="fa fa-times-circle delete-history-btn" title="删除对话"></i>
+        `;
+
+        historyItem.querySelector('span').addEventListener('click', (e) => {
+          e.stopPropagation();
+          switchToChat(chatId);
+        });
+
+        historyItem.querySelector('.delete-history-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteChat(chatId);
+        });
+
+        chatHistory.appendChild(historyItem);
+      });
+    }
+
+    // 删除单个对话
+    function deleteChat(chatId) {
+      if (chatId === currentChatId && Object.keys(chatSessions).length > 1) {
+        const otherChatId = Object.keys(chatSessions).find(id => id !== chatId);
+        switchToChat(otherChatId);
+      }
+
+      delete chatSessions[chatId];
+
+      if (Object.keys(chatSessions).length === 0) {
+        chatSessions['current'] = {
+          title: '当前会话',
+          messages: [
+            {
+              content: '您好！我是小苏，有什么可以帮助您的吗？？',
+              sender: 'ai',
+              timestamp: new Date().getTime()
+            }
+          ]
+        };
+        switchToChat('current');
+      }
+
+      renderChatHistory();
+    }
+
+    // 发送消息
+    textSubmitBtn.addEventListener('click', sendMessage);
+    textInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    // 发送消息函数 —— 调用 /api/process-text
+    function sendMessage() {
+      const inputText = textInput.value.trim();
+      if (!inputText) return;
+
+      // 添加用户消息
+      addMessage(inputText, 'user');
+      chatSessions[currentChatId].messages.push({
+        content: inputText,
+        sender: 'user',
+        timestamp: new Date().getTime()
+      });
+
+      // 更新标题
+      if (chatSessions[currentChatId].title === '新对话' || chatSessions[currentChatId].title === '当前会话') {
+        const newTitle = inputText.length > 20 ? inputText.substring(0, 20) + '...' : inputText;
+        chatSessions[currentChatId].title = newTitle;
+        renderChatHistory();
+      }
+
+      textInput.value = '';
+
+      // 调用后端本地模型
+      showLoading();
+      fetch('/api/process-text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: inputText })
+      })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || '服务器返回错误');
+        }
+        const reply = data.result || '(后端未返回内容)';
+        addMessage(reply, 'ai');
+        chatSessions[currentChatId].messages.push({
+          content: reply,
+          sender: 'ai',
+          timestamp: new Date().getTime()
+        });
+      })
+      .catch((err) => {
+        const errMsg = '【错误】' + err.message;
+        addMessage(errMsg, 'ai');
+        chatSessions[currentChatId].messages.push({
+          content: errMsg,
+          sender: 'ai',
+          timestamp: new Date().getTime()
+        });
+      });
+    }
+
+    // 添加消息到界面
+    function addMessage(content, sender, scrollToBottom = true) {
+      // 移除加载状态
+      const loadingItem = document.querySelector('.loading-message');
+      if (loadingItem) loadingItem.remove();
+
+      const messageDiv = document.createElement('div');
+      messageDiv.className = `flex items-start mb-6 ${sender === 'user' ? 'justify-end' : ''}`;
+
+      if (sender === 'user') {
+        messageDiv.innerHTML = `
+          <div class="user-message message-bubble">
+            <pre>${escapeHtml(content)}</pre>
+          </div>
+          <div class="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 ml-3 flex-shrink-0">
+            <i class="fa fa-user"></i>
+          </div>
+        `;
+      } else {
+        messageDiv.innerHTML = `
+          <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-500 mr-3 flex-shrink-0">
+            <i class="fa fa-robot"></i>
+          </div>
+          <div class="ai-message message-bubble">
+            <pre>${escapeHtml(content)}</pre>
+          </div>
+        `;
+      }
+
+      messageList.appendChild(messageDiv);
+
+      if (scrollToBottom) {
+        messageList.scrollTop = messageList.scrollHeight;
+      }
+    }
+
+    // 显示加载状态
+    function showLoading() {
+      const loadingDiv = document.createElement('div');
+      loadingDiv.className = 'flex items-start mb-6 loading-message';
+      loadingDiv.innerHTML = `
+        <div class="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center text-blue-500 mr-3 flex-shrink-0">
+          <i class="fa fa-robot"></i>
+        </div>
+        <div class="ai-message message-bubble flex items-center space-x-2">
+          <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 0ms"></div>
+          <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 150ms"></div>
+          <div class="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style="animation-delay: 300ms"></div>
+        </div>
+      `;
+      messageList.appendChild(loadingDiv);
+      messageList.scrollTop = messageList.scrollHeight;
+    }
+
+    // 清空所有历史记录
+    clearHistoryBtn.addEventListener('click', () => {
+      if (confirm('确定要清空所有聊天历史吗？')) {
+        const currentSession = chatSessions[currentChatId];
+        chatSessions = {};
+        chatSessions[currentChatId] = currentSession;
+        renderChatHistory();
+      }
+    });
+
+    // 小型语音按钮逻辑：触发大录音按钮
+    let isSmallRecording = false;
+    voiceSmallBtn.addEventListener('click', () => {
+      if (!isSmallRecording) {
+        startSmallRecording();
+      } else {
+        stopSmallRecording();
+      }
+    });
+
+    function startSmallRecording() {
+      isSmallRecording = true;
+      voiceSmallBtn.classList.add('recording');
+      voiceSmallBtn.innerHTML = '<i class="fa fa-stop"></i>';
+      if (statusEl) statusEl.textContent = '正在录音...';
+      if (startBtn) startBtn.click();
+    }
+
+    function stopSmallRecording() {
+      isSmallRecording = false;
+      voiceSmallBtn.classList.remove('recording');
+      voiceSmallBtn.innerHTML = '<i class="fa fa-microphone"></i>';
+      if (statusEl) statusEl.textContent = '录音已停止';
+      if (stopBtn) stopBtn.click();
+    }
+
+    // === 语音录音 + 调用 /api/process-voice ===
+    if (startBtn && stopBtn) {
+      startBtn.addEventListener('click', async () => {
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          audioChunks = [];
+          mediaRecorder = new MediaRecorder(stream);
+          mediaRecorder.ondataavailable = (e) => {
+            if (e.data.size > 0) audioChunks.push(e.data);
+          };
+          mediaRecorder.onstop = () => {
+            const blob = new Blob(audioChunks, { type: 'audio/webm' });
+            uploadAudio(blob);
+            stream.getTracks().forEach(t => t.stop());
+          };
+          mediaRecorder.start();
+
+          startBtn.disabled = true;
+          stopBtn.disabled = false;
+          statusEl.textContent = '正在录音...';
+        } catch (err) {
+          alert('无法访问麦克风：' + err.message);
+        }
+      });
+
+      stopBtn.addEventListener('click', () => {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+          mediaRecorder.stop();
+          statusEl.textContent = '录音已停止，正在上传...';
+          stopBtn.disabled = true;
+          startBtn.disabled = false;
+        }
+      });
+    }
+
+    function uploadAudio(blob) {
+      const formData = new FormData();
+      formData.append('audio', blob, 'record.wav');
+
+      showLoading();
+      fetch('/api/process-voice', {
+        method: 'POST',
+        body: formData
+      })
+      .then(async (res) => {
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.error || '语音接口返回错误');
+        }
+
+        // 显示识别结果
+        if (voiceTranscriptBox) {
+          voiceTranscriptBox.classList.remove('hidden');
+          transcriptText.textContent = data.transcript || '（未识别到文本）';
+          asrNote.textContent = data.note || '';
+        }
+
+        let replyText = '';
+        if (data.result) {
+          replyText = data.result;
+        } else if (data.note) {
+          replyText = '【语音上传成功】' + data.note;
+        } else {
+          replyText = '语音已上传，但后端未返回文本结果。';
+        }
+
+        if (data.transcript) {
+          addMessage('（语音识别）' + data.transcript, 'user');
+          chatSessions[currentChatId].messages.push({
+            content: '（语音识别）' + data.transcript,
+            sender: 'user',
+            timestamp: new Date().getTime()
+          });
+        }
+
+        addMessage(replyText, 'ai');
+        chatSessions[currentChatId].messages.push({
+          content: replyText,
+          sender: 'ai',
+          timestamp: new Date().getTime()
+        });
+
+        statusEl.textContent = '完成';
+      })
+      .catch((err) => {
+        const errMsg = '【语音错误】' + err.message;
+        addMessage(errMsg, 'ai');
+        chatSessions[currentChatId].messages.push({
+          content: errMsg,
+          sender: 'ai',
+          timestamp: new Date().getTime()
+        });
+        statusEl.textContent = '语音处理失败';
+      });
+    }
+
+    // 工具函数：HTML转义
+    function escapeHtml(unsafe) {
+      if (!unsafe) return '';
+      return unsafe
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
+
+    // 更新侧边栏菜单项点击效果，支持图谱
+    document.querySelectorAll('.sidebar-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        if (!item.classList.contains('admin-link')) {
+          e.preventDefault();
+          document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+          item.classList.add('active');
+
+          const type = item.getAttribute('data-type') || 'text';
+
+          // 更新Tab和面板
+          Object.values(tabs).forEach(tab => tab?.classList.remove('tab-active'));
+          tabs[type]?.classList.add('tab-active');
+
+          Object.values(panels).forEach(panel => panel.classList.add('hidden'));
+          panels[type]?.classList.remove('hidden');
+
+          // 如果切换到图谱，延迟加载
+          if (type === 'graph') {
+            setTimeout(() => {
+              if (!networkInstance) {
+                loadGraphData();
+              }
+            }, 100);
+          }
+        }
+      });
+    });
+
+    // 图像上传区域点击事件
+    const imageDropArea = document.getElementById('image-drop-area');
+    const imageUploadInput = document.getElementById('image-upload-input');
+    const imagePreviewContainer = document.getElementById('image-preview-container');
+    const imagePreview = document.getElementById('image-preview');
+    const imageAnalyzeBtn = document.getElementById('image-analyze-btn');
+
+    if (imageDropArea) {
+      imageDropArea.addEventListener('click', () => {
+        imageUploadInput.click();
+      });
+
+      // 拖放功能
+      imageDropArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        imageDropArea.classList.add('border-blue-500', 'bg-blue-50');
+      });
+
+      imageDropArea.addEventListener('dragleave', () => {
+        imageDropArea.classList.remove('border-blue-500', 'bg-blue-50');
+      });
+
+      imageDropArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        imageDropArea.classList.remove('border-blue-500', 'bg-blue-50');
+
+        if (e.dataTransfer.files.length) {
+          imageUploadInput.files = e.dataTransfer.files;
+          previewImage(imageUploadInput.files[0]);
+        }
+      });
+
+      // 图片预览
+      imageUploadInput.addEventListener('change', (e) => {
+        if (e.target.files.length) {
+          previewImage(e.target.files[0]);
+        }
+      });
+
+      function previewImage(file) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          imagePreview.src = e.target.result;
+          imagePreviewContainer.classList.remove('hidden');
+          imageAnalyzeBtn.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+      }
+
+      // 图像分析按钮点击事件 —— 调用 /api/process-image
+      imageAnalyzeBtn.addEventListener('click', () => {
+        if (!imageUploadInput.files || !imageUploadInput.files[0]) {
+          alert('请先选择一张图片');
+          return;
+        }
+
+        const file = imageUploadInput.files[0];
+        const message = '我上传了一张图片，请分析';
+        addMessage(message, 'user');
+
+        if (chatSessions[currentChatId].title === '新对话' || chatSessions[currentChatId].title === '当前会话') {
+          chatSessions[currentChatId].title = '图像分析对话';
+          renderChatHistory();
+        }
+
+        chatSessions[currentChatId].messages.push({
+          content: message,
+          sender: 'user',
+          timestamp: new Date().getTime()
+        });
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        showLoading();
+        fetch('/api/process-image', {
+          method: 'POST',
+          body: formData
+        })
+        .then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) {
+            throw new Error(data.error || '图像接口返回错误');
+          }
+          const analysisResult = data.result || '（后端未返回分析结果）';
+          addMessage('图像分析结果：\n' + analysisResult, 'ai');
+          chatSessions[currentChatId].messages.push({
+            content: '图像分析结果：\n' + analysisResult,
+            sender: 'ai',
+            timestamp: new Date().getTime()
+          });
+
+          // 使用后端返回的图像（如果有）
+          if (data.image) {
+            imagePreview.src = 'data:image/jpeg;base64,' + data.image;
+            imagePreviewContainer.classList.remove('hidden');
+          }
+        })
+        .catch((err) => {
+          const errMsg = '【图像错误】' + err.message;
+          addMessage(errMsg, 'ai');
+          chatSessions[currentChatId].messages.push({
+            content: errMsg,
+            sender: 'ai',
+            timestamp: new Date().getTime()
+          });
+        });
+      });
+    }
+
+    // ================= Neo4j图谱可视化功能 =================
+    // 加载图谱数据
+    function loadGraphData() {
+      const filterLabel = document.getElementById('graph-label-filter').value.trim();
+      const graphContainer = document.getElementById('graph-container');
+      const loading = document.getElementById('graph-loading');
+      const errorEl = document.getElementById('graph-error');
+      const statusEl = document.getElementById('graph-status');
+      const statsEl = document.getElementById('graph-stats');
+
+      // 重置状态
+      if (networkInstance) {
+        networkInstance.destroy();
+        networkInstance = null;
+      }
+      graphContainer.innerHTML = '';
+      statusEl.classList.add('hidden');
+      statsEl.textContent = '';
+      errorEl.classList.add('hidden');
+      loading.classList.remove('hidden');
+
+      console.log('[DEBUG] 开始加载图谱数据，筛选标签:', filterLabel);
+
+      // 调用后端图谱接口
+      fetch('/api/neo4j-visualize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ label: filterLabel })
+      })
+      .then(res => {
+        console.log('[DEBUG] 响应状态:', res.status);
+        if (!res.ok) throw new Error(`HTTP错误: ${res.status}`);
+        return res.json();
+      })
+      .then(data => {
+        console.log('[DEBUG] 接收到数据:', data);
+
+        loading.classList.add('hidden');
+        statusEl.classList.remove('hidden');
+
+        if (data.error) {
+          console.error('[ERROR]', data.error);
+          errorEl.textContent = `加载失败: ${data.error}`;
+          errorEl.classList.remove('hidden');
+          statusEl.textContent = '图谱加载失败';
+          return;
+        }
+
+        // 检查数据
+        if (!data.nodes || data.nodes.length === 0) {
+          errorEl.textContent = '数据库中没有找到节点数据，请确认Neo4j连接正常且包含数据';
+          errorEl.classList.remove('hidden');
+          statusEl.textContent = '暂无图谱数据';
+          return;
+        }
+
+        console.log(`[DEBUG] 准备渲染 ${data.nodes.length} 个节点，${data.edges.length} 条关系`);
+
+        // 图谱配置
+        const options = {
+          nodes: {
+            shape: 'dot',
+            size: 20,
+            font: {
+              size: 12,
+              color: '#333333'
+            },
+            borderWidth: 2,
+            shadow: true
+          },
+          edges: {
+            width: 2,
+            font: {
+              size: 10,
+              align: 'middle'
+            },
+            arrows: {
+              to: {
+                enabled: true,
+                scaleFactor: 0.8
+              }
+            },
+            smooth: {
+              type: 'continuous'
+            }
+          },
+          physics: {
+            enabled: true,
+            forceAtlas2Based: {
+              gravitationalConstant: -50,
+              centralGravity: 0.01,
+              springLength: 100,
+              springConstant: 0.08
+            },
+            maxVelocity: 50,
+            solver: 'forceAtlas2Based',
+            timestep: 0.35,
+            stabilization: {
+              enabled: true,
+              iterations: 150
+            }
+          },
+          interaction: {
+            dragNodes: true,
+            zoomView: true,
+            dragView: true,
+            selectConnectedEdges: false
+          },
+          layout: {
+            improvedLayout: true
+          }
+        };
+
+        // 为不同的节点组设置颜色
+        const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#F97316'];
+        const groups = {};
+        data.nodes.forEach((node, index) => {
+          if (!groups[node.group]) {
+            groups[node.group] = colors[Object.keys(groups).length % colors.length];
+          }
+          node.color = groups[node.group];
+        });
+
+        // 创建图谱实例
+        networkInstance = new vis.Network(graphContainer, data, options);
+
+        console.log('[DEBUG] 图谱渲染完成');
+
+        // 更新状态信息
+        statusEl.textContent = '图谱加载成功，可拖拽节点调整位置，滚轮缩放';
+
+
+        // 节点点击事件
+        networkInstance.on('click', (params) => {
+          if (params.nodes.length > 0) {
+            const nodeId = params.nodes[0];
+            const node = data.nodes.find(n => n.id == nodeId);
+            if (node) {
+              alert(`节点详情:\n标签: ${node.label}\n${node.title || '暂无其他信息'}`);
+            }
+          }
+        });
+
+        // 图谱稳定后停止物理引擎以提高性能
+        networkInstance.once('stabilizationIterationsDone', () => {
+          networkInstance.setOptions({ physics: false });
+          console.log('[DEBUG] 图谱稳定完成，物理引擎已停止');
+        });
+
+      })
+      .catch(err => {
+        console.error('[ERROR] 请求失败:', err);
+        loading.classList.add('hidden');
+        errorEl.textContent = `请求失败: ${err.message}`;
+        errorEl.classList.remove('hidden');
+        statusEl.textContent = '图谱加载失败';
+      });
+    }
+
+    // 绑定图谱按钮事件
+    document.getElementById('graph-refresh').addEventListener('click', loadGraphData);
+
+    document.getElementById('graph-clear').addEventListener('click', () => {
+      if (networkInstance) {
+        networkInstance.destroy();
+        networkInstance = null;
+        document.getElementById('graph-container').innerHTML = '';
+        document.getElementById('graph-status').textContent = '图谱已清空';
+        document.getElementById('graph-stats').textContent = '';
+      }
+    });
+
+    // 支持Enter键筛选
+    document.getElementById('graph-label-filter').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        loadGraphData();
+      }
+    });
+
+    // 绑定新对话按钮事件
+    newChatBtn.addEventListener('click', createNewChat);
+    mobileNewChatBtn.addEventListener('click', createNewChat);
+
+    // 页面加载完成后初始化
+    window.addEventListener('load', () => {
+      adjustHeights();
+      renderChatHistory();
+    });
+
+    // 窗口大小变化时调整高度
+    window.addEventListener('resize', () => {
+      adjustHeights();
+      // 如果图谱已加载，重新调整大小
+      if (networkInstance) {
+        networkInstance.redraw();
+      }
+    });
+
+    // 调整元素高度以适应窗口
+    function adjustHeights() {
+      const messageContainer = document.querySelector('.message-container');
+      const chatHistory = document.getElementById('chat-history');
+
+      if (messageContainer) {
+        const inputAreaHeight = document.querySelector('.flex.items-end').offsetHeight;
+        messageContainer.style.height = `calc(100% - ${inputAreaHeight + 24}px)`;
+      }
+
+      if (chatHistory) {
+        const sidebarHeaderHeight = document.querySelector('.flex.justify-between.items-center').offsetHeight;
+        const functionMenuHeight = document.querySelector('.space-y-1.mb-8').offsetHeight;
+        chatHistory.style.height = `calc(100vh - ${sidebarHeaderHeight + functionMenuHeight + 120}px)`;
+      }
+    }
+  </script>
+</body>
+</html>
